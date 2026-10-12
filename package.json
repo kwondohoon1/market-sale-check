@@ -1,0 +1,11 @@
+{
+  "name": "market-sale-check",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "jszip": "3.10.1"
+  }
+}

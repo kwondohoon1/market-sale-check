@@ -1,0 +1,22 @@
+# 허용 목록 방식: 아래에 적은 것만 커밋된다. 엑셀·CSV·데이터는 어떤 경우에도 올라가지 않는다.
+/*
+!/.gitignore
+!/.githooks/
+!/.github/
+!/site/
+!/extension/
+!/tools/
+!/tests/
+!/docs/
+!/README.md
+!/package.json
+!/package-lock.json
+
+# 허용한 폴더 안에서도 데이터 파일·임시 파일은 막는다
+*.xls
+*.xlsx
+*.xlsm
+*.xlsb
+*.csv
+*.zip
+tmp-*
