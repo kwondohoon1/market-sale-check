@@ -7,6 +7,8 @@
 export function readGmarket() {
   const o = window.GmktItem && window.GmktItem.OrderSet;
   const g = window.goods || {};
+  // 품절 상품은 OrderSet 없이 goods 만 온다(실측: IsOutOfStock=true, 화면에 SOLD OUT)
+  if (!o && g.GoodsName && g.IsOutOfStock) return { found: true, name: g.GoodsName, selling: false, status: '품절' };
   if (!o) return { found: false, status: document.title || '상품 정보 없음' };
   const coupon = o.Discount && o.Discount.CouponAppliedPrice;
   const extras = ((coupon && coupon.extraDiscounts) || []).map((x) => +x.extraDiscountPrice).filter((n) => n > 0);
@@ -28,20 +30,26 @@ export function readAuction() {
   if (/NoItem/i.test(location.pathname)) return { found: false, status: '상품 없음' };
   const html = document.documentElement.outerHTML;
   const sell = /"SellingPrice"\s*:\s*([\d.]+)/.exec(html);
-  if (!sell) return { found: false, status: document.title || '상품 정보 없음' };
-  const optimal = /optimalPrice\s*:\s*([\d.]+)/.exec(html);
-  const name = (document.title || '').replace(/\s*-\s*옥션\s*$/, '');
   const text = document.body ? document.body.innerText : '';
+  if (!sell) return { found: false, status: document.title || '상품 정보 없음' };
+  // 쿠폰적용가: 화면 글자 → 스크립트 값 순서. 둘 다 아직 없으면 partial 로 알려 다시 읽게 한다
+  const shownText = /([\d,]+)원\s*쿠폰적용가/.exec(text);
+  const optimal = /optimalPrice\s*:\s*([\d.]+)/.exec(html);
+  const coupon = shownText ? +shownText[1].replace(/,/g, '') : optimal ? Math.round(+optimal[1]) : null;
+  const name = (document.title || '').replace(/\s*-\s*옥션\s*$/, '');
   const stopped = /판매가\s*(종료|중지)된\s*상품|판매\s*(종료|중지)\s*상품/.test(text);
-  const soldOut = /"availability"\s*:\s*"[^"]*OutOfStock"/.test(html);
+  // 재고 0 이면 품절(실측: 품절 상품 hddnStockQty=0, 판매중 997) — 이때 쿠폰적용가도 안 뜬다
+  const stock = document.getElementById('hddnStockQty');
+  const soldOut = (stock && stock.value !== '' && +stock.value <= 0) || /"availability"\s*:\s*"[^"]*OutOfStock"/.test(html);
   return {
     found: true,
     name,
     selling: !stopped && !soldOut,
     status: stopped ? '판매 중지' : soldOut ? '품절' : '판매중',
     listPrice: Math.round(+sell[1]) || null,
-    shownPrice: Math.round(+(optimal && optimal[1])) || Math.round(+sell[1]) || null,
+    shownPrice: coupon || Math.round(+sell[1]) || null,
     maxPrice: null,
+    partial: !coupon && !soldOut && !stopped,
   };
 }
 

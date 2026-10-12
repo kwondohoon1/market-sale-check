@@ -7,7 +7,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<
 
 // 확장이 읽을 수 있는 마켓(컴퓨존은 아직 코드가 없어 읽기 함수가 없다)
 const COLLECTABLE = new Set(['gmarket', 'auction', 'superstore', 'himart', 'smartstore', 'coupang']);
-const LABEL = Object.fromEntries(MARKETS.map((m) => [m.key, m.key === 'superstore' ? '자사몰(슈퍼스토어)' : m.label]));
+const LABEL = Object.fromEntries(MARKETS.map((m) => [m.key, m.key === 'superstore' ? '자사몰(슈퍼스토어)' : m.key === 'coupang' ? '쿠팡(시험)' : m.label]));
 const CLASS = { ok: 'ok', mismatch: 'warn', notSelling: 'bad', notFound: 'bad', failed: 'fail', noExpected: 'info', noCode: 'none', pending: 'none' };
 
 const state = {

@@ -45,7 +45,7 @@ for (const market of markets) {
           for (const d of [1200, 2500, 4000]) {
             await page.waitForTimeout(d);
             result = await page.evaluate(`(${m.read.toString()})()`);
-            if (result && result.found) break;
+            if (result && result.found && !result.partial) break;
           }
         } catch (e) { result = { found: false, error: true, status: e.message.split('\n')[0] }; }
         lastAt[market] = Date.now();

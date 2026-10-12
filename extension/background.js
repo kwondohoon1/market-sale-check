@@ -64,7 +64,7 @@ async function openAndRead(tabId, url, read) {
     await sleep(delay);
     const [res] = await chrome.scripting.executeScript({ target: { tabId }, world: 'MAIN', func: read });
     r = res && res.result;
-    if (r && r.found) break;
+    if (r && r.found && !r.partial) break;
   }
   const t = await chrome.tabs.get(tabId);
   const blocked = /잠시만 기다리십시오|captcha|robot|보안 확인/i.test(t.title || '');
