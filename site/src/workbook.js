@@ -184,8 +184,11 @@ function findSheet(book, name) {
   return null;
 }
 
-// 정산가세팅의 'G마켓 기준' 표(없으면 첫 표)에서 마켓별 등재가(세팅)·노출가를 읽는다.
-// G마켓·옥션 페이지의 쿠폰 적용가는 '노출가 (2차혜택가)' 열과 같아서 그 값을 노출가 기대값으로 쓴다.
+// 정산가세팅에서 상품마다 기준 표를 골라 마켓별 등재가(세팅)·노출가를 읽는다.
+// 표가 여럿(G마켓 기준·자사몰 기준·하이마트 기준)이면, 그 상품 행을 노란색(FFFF00)으로 칠한 표가 실제 세팅이다.
+// 노란색이 없으면 'G마켓 기준' 표(없으면 첫 표). 각 표의 마켓 묶음은 그 표의 정산가를 내는 마켓별 가격이다.
+// G마켓 기준 표에서는 G마켓·옥션 페이지 쿠폰 적용가가 '노출가 (2차혜택가)' 열과 같아서 그 값을 노출가 기대값으로 쓴다.
+const YELLOW = /rgb="(?:FF)?FFFF00"/i;
 function extractExpected(book, notes) {
   const out = new Map();
   const cells = findSheet(book, PRICE_SHEET);
@@ -199,46 +202,60 @@ function extractExpected(book, notes) {
   const heads = rowNums.filter(isHead);
   if (!heads.length) { notes.push(`'${PRICE_SHEET}' 에서 표 머리글을 찾지 못했습니다.`); return out; }
   const groupText = (r) => [...(rows.get(r - 1) || new Map()).values()].map((c) => text(c.v)).join(' ');
-  const head = heads.find((r) => /G마켓\s*기준/.test(groupText(r))) ?? heads[0];
-  const hRow = rows.get(head);
-  const gRow = rows.get(head - 1) || new Map();
-  const hText = (col) => text(val(hRow, col));
 
-  let nameCol = null, shown2Col = null, maxCol = null;
-  for (const [col] of hRow) {
-    const t = hText(col);
-    if (t === '모델명') nameCol = col;
-    else if (/^노출가\s*\(2차혜택가\)/.test(t) && shown2Col == null) shown2Col = col;
-    else if (t === '최대혜택가' && maxCol == null) maxCol = col;
-  }
-  // 위 행의 마켓 이름 아래 4칸: 등재가(세팅) · 노출가 · 정산액 · 차이
-  const blocks = new Map();
-  for (const [col, c] of gRow) {
-    const label = text(c.v);
-    if (!MARKETS.some((m) => m.block === label)) continue;
-    if (/^등재가/.test(hText(col)) && hText(col + 1) === '노출가') blocks.set(label, { list: col, shown: col + 1 });
-  }
-
-  const end = heads.find((r) => r > head) ?? Infinity;
-  for (const r of rowNums) {
-    if (r <= head || r >= end - 1) continue;
-    const row = rows.get(r);
-    const name = text(val(row, nameCol));
-    if (!name) continue;
-    const exp = {};
-    for (const m of MARKETS) {
-      const b = blocks.get(m.block);
-      if (!b) continue;
-      let list = num(val(row, b.list));
-      let shown = num(val(row, b.shown));
-      let max = null;
-      if (m.block === 'G마켓·옥션') {
-        if (shown2Col) shown = num(val(row, shown2Col));
-        if (maxCol) max = num(val(row, maxCol));
-      }
-      if (list != null || shown != null) exp[m.key] = { list: round(list), shown: round(shown), max: round(max) };
+  const tables = heads.map((head, i) => {
+    const hRow = rows.get(head);
+    const gRow = rows.get(head - 1) || new Map();
+    const hText = (col) => text(val(hRow, col));
+    const label = (/(G마켓|자사몰|하이마트)\s*기준/.exec(groupText(head)) || [])[0]?.replace(/\s+/g, ' ') || `표 ${i + 1}`;
+    const isG = /G마켓/.test(label);
+    let nameCol = null, shown2Col = null, maxCol = null;
+    for (const [col] of hRow) {
+      const t = hText(col);
+      if (t === '모델명') nameCol = col;
+      else if (/^노출가\s*\(2차혜택가\)/.test(t) && shown2Col == null) shown2Col = col;
+      else if (t === '최대혜택가' && maxCol == null) maxCol = col;
     }
-    out.set(normName(name), exp);
+    // 위 행의 마켓 이름 아래 4칸: 등재가(세팅) · 노출가 · 정산액 · 차이
+    const blocks = new Map();
+    for (const [col, c] of gRow) {
+      const lb = text(c.v);
+      if (!MARKETS.some((m) => m.block === lb)) continue;
+      if (/^등재가/.test(hText(col)) && hText(col + 1) === '노출가') blocks.set(lb, { list: col, shown: col + 1 });
+    }
+    const end = heads[i + 1] ?? Infinity;
+    const byName = new Map();
+    for (const r of rowNums) {
+      if (r <= head || r >= end - 1) continue;
+      const row = rows.get(r);
+      const name = text(val(row, nameCol));
+      if (!name) continue;
+      const exp = {};
+      for (const m of MARKETS) {
+        const b = blocks.get(m.block);
+        if (!b) continue;
+        let list = num(val(row, b.list));
+        let shown = num(val(row, b.shown));
+        let max = null;
+        if (m.block === 'G마켓·옥션' && isG) {
+          if (shown2Col) shown = num(val(row, shown2Col));
+          if (maxCol) max = num(val(row, maxCol));
+        }
+        if (list != null || shown != null) exp[m.key] = { list: round(list), shown: round(shown), max: round(max) };
+      }
+      const yellow = [...row.values()].some((c) => YELLOW.test(book.fillOf(c.s)));
+      byName.set(normName(name), { exp, yellow });
+    }
+    return { label, isG, byName };
+  });
+
+  const base = tables.find((t) => t.isG) ?? tables[0];
+  const names = new Set(tables.flatMap((t) => [...t.byName.keys()]));
+  for (const n of names) {
+    const marked = tables.filter((t) => t.byName.get(n)?.yellow);
+    const t = marked[0] ?? (base.byName.has(n) ? base : tables.find((x) => x.byName.has(n)));
+    if (marked.length > 1) notes.push(`노란색 표시가 여러 표에 있어 '${marked[0].label}'을 썼습니다: ${n}`);
+    out.set(n, { ...t.byName.get(n).exp, _basis: t.label, _marked: marked.length > 0 });
   }
   return out;
 }
