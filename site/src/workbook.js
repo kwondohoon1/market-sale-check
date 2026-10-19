@@ -185,7 +185,8 @@ function findSheet(book, name) {
 }
 
 // 정산가세팅에서 상품마다 기준 표를 골라 마켓별 등재가(세팅)·노출가를 읽는다.
-// 표가 여럿(G마켓 기준·자사몰 기준·하이마트 기준)이면, 그 상품 행을 노란색(FFFF00)으로 칠한 표가 실제 세팅이다.
+// 표가 여럿(G마켓 기준·자사몰 기준·하이마트 기준)이면, 그 상품 행의 '상태'가 '세팅'(또는 노란색 FFFF00)인 표가 실제 세팅이다.
+// 어느 표에서든 상태가 '단종'이면 가격은 비교하지 않는다.
 // 노란색이 없으면 'G마켓 기준' 표(없으면 첫 표). 각 표의 마켓 묶음은 그 표의 정산가를 내는 마켓별 가격이다.
 // G마켓 기준 표에서는 G마켓·옥션 페이지 쿠폰 적용가가 '노출가 (2차혜택가)' 열과 같아서 그 값을 노출가 기대값으로 쓴다.
 const YELLOW = /rgb="(?:FF)?FFFF00"/i;
@@ -209,10 +210,11 @@ function extractExpected(book, notes) {
     const hText = (col) => text(val(hRow, col));
     const label = (/(G마켓|자사몰|하이마트)\s*기준/.exec(groupText(head)) || [])[0]?.replace(/\s+/g, ' ') || `표 ${i + 1}`;
     const isG = /G마켓/.test(label);
-    let nameCol = null, shown2Col = null, maxCol = null;
+    let nameCol = null, shown2Col = null, maxCol = null, stateCol = null;
     for (const [col] of hRow) {
       const t = hText(col);
       if (t === '모델명') nameCol = col;
+      else if (t === '상태') stateCol = col;            // 세팅 / 단종 / 보류 (드롭다운)
       else if (/^노출가\s*\(2차혜택가\)/.test(t) && shown2Col == null) shown2Col = col;
       else if (t === '최대혜택가' && maxCol == null) maxCol = col;
     }
@@ -243,8 +245,9 @@ function extractExpected(book, notes) {
         }
         if (list != null || shown != null) exp[m.key] = { list: round(list), shown: round(shown), max: round(max) };
       }
-      const yellow = [...row.values()].some((c) => YELLOW.test(book.fillOf(c.s)));
-      byName.set(normName(name), { exp, yellow });
+      const status = stateCol ? text(val(row, stateCol)) : '';
+      const yellow = status === '세팅' || [...row.values()].some((c) => YELLOW.test(book.fillOf(c.s)));
+      byName.set(normName(name), { exp, yellow, status, name });
     }
     return { label, isG, byName };
   });
@@ -254,8 +257,10 @@ function extractExpected(book, notes) {
   for (const n of names) {
     const marked = tables.filter((t) => t.byName.get(n)?.yellow);
     const t = marked[0] ?? (base.byName.has(n) ? base : tables.find((x) => x.byName.has(n)));
-    if (marked.length > 1) notes.push(`노란색 표시가 여러 표에 있어 '${marked[0].label}'을 썼습니다: ${n}`);
-    out.set(n, { ...t.byName.get(n).exp, _basis: t.label, _marked: marked.length > 0 });
+    if (marked.length > 1) notes.push(`'세팅' 표시가 여러 표에 있어 '${marked[0].label}'을 썼습니다: ${marked[0].byName.get(n).name}`);
+    const gone = tables.some((x) => x.byName.get(n)?.status === '단종');
+    if (gone) notes.push(`상태 '단종': ${t.byName.get(n).name} — 가격은 비교하지 않습니다.`);
+    out.set(n, gone ? { _basis: t.label, _marked: false, _gone: true } : { ...t.byName.get(n).exp, _basis: t.label, _marked: marked.length > 0 });
   }
   return out;
 }
