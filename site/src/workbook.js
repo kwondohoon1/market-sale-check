@@ -9,6 +9,7 @@ export const MARKETS = [
   { key: 'smartstore', label: '스마트스토어', codeHeader: ['스마트스토어'], block: '스마트스토어' },
   { key: 'coupang', label: '쿠팡', codeHeader: ['쿠팡'], block: '쿠팡' },
   { key: 'compuzone', label: '컴퓨존', codeHeader: ['컴퓨존'], block: '컴퓨존' },
+  { key: 'eleven', label: '11번가', codeHeader: ['11번가'], block: '11번가', optional: true }, // 예전 파일엔 열이 없음
 ];
 
 const CODE_SHEET = '마켓별상품코드';
@@ -138,7 +139,7 @@ export function extractProducts(book) {
   const catCol = colOf(['카테고리']);
   const brandCol = colOf(['브랜드']);
   const codeCols = Object.fromEntries(MARKETS.map((m) => [m.key, colOf(m.codeHeader)]));
-  for (const m of MARKETS) if (!codeCols[m.key]) notes.push(`${m.label} 코드 열을 찾지 못해 이 마켓은 '코드 없음'으로 둡니다.`);
+  for (const m of MARKETS) if (!codeCols[m.key] && !m.optional) notes.push(`${m.label} 코드 열을 찾지 못해 이 마켓은 '코드 없음'으로 둡니다.`);
 
   // 스마트스토어 칸 색: '에이서계정 등록' 표시 칸과 같은 채우기면 에이서 스토어
   let acerFill = null;

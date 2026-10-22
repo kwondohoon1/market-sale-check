@@ -121,6 +121,29 @@ export function readNaver() {
   };
 }
 
+// 11번가: 상품 JSON-LD의 offers — price = 할인(쿠폰) 적용가, priceSpecification.price = 판매가(취소선 가격)
+export function readEleven() {
+  if (!/\/products\//.test(location.pathname)) return { found: false, status: '상품 없음' };
+  let prod = null;
+  for (const s of document.querySelectorAll('script[type="application/ld+json"]')) {
+    try { const j = JSON.parse(s.textContent); const list = Array.isArray(j) ? j : [j]; prod = list.find((x) => x && x.offers) || prod; } catch (e) { /* 다음 */ }
+  }
+  if (!prod) return { found: false, status: document.title || '상품 정보 없음' };
+  const o = Array.isArray(prod.offers) ? prod.offers[0] : prod.offers;
+  const shown = +o.price || null;
+  const list = (o.priceSpecification && +o.priceSpecification.price) || shown;
+  const selling = /InStock/i.test(o.availability || '');
+  return {
+    found: true,
+    name: prod.name || document.title,
+    selling,
+    status: selling ? '판매중' : `판매 안 함(${String(o.availability || '?').split('/').pop()})`,
+    listPrice: list,
+    shownPrice: shown,
+    maxPrice: null,
+  };
+}
+
 export function readCoupang() {
   const text = document.body ? document.body.innerText : '';
   if (/상품을 찾을 수 없습니다/.test(text)) return { found: false, status: '상품 없음' };

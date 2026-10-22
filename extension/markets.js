@@ -1,5 +1,5 @@
 // 마켓별 상품 주소 규칙과 읽기 함수. 백그라운드와 실측 도구(tools/live-check.mjs)가 함께 쓴다.
-import { readGmarket, readAuction, readSuperstore, readHimart, readNaver, readCoupang } from './readers.js';
+import { readGmarket, readAuction, readSuperstore, readHimart, readNaver, readCoupang, readEleven } from './readers.js';
 
 export const NAVER_STORES = { ihansung: 'https://brand.naver.com/ihansung', acerstore: 'https://smartstore.naver.com/acerstore' };
 
@@ -20,4 +20,5 @@ export const MARKETS = {
     },
   },
   coupang: { gap: 4000, read: readCoupang, urls: (j) => [`https://www.coupang.com/vp/products/${j.code}`] },
+  eleven: { gap: 3000, read: readEleven, urls: (j) => [`https://www.11st.co.kr/products/${j.code}`] },
 };

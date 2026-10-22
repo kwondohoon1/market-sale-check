@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "마켓 판매 점검 도우미",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "마켓 판매 점검 페이지가 요청한 상품 페이지를 이 크롬에서 열어 판매 상태와 가격을 읽어 옵니다.",
   "permissions": ["tabs", "scripting"],
   "host_permissions": [
@@ -12,7 +12,8 @@
     "https://www.e-himart.co.kr/*",
     "https://brand.naver.com/*",
     "https://smartstore.naver.com/*",
-    "https://www.coupang.com/*"
+    "https://www.coupang.com/*",
+    "https://www.11st.co.kr/*"
   ],
   "background": { "service_worker": "background.js", "type": "module" },
   "content_scripts": [
